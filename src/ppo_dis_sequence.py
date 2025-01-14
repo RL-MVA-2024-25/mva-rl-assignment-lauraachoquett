@@ -18,7 +18,7 @@ class EnhancedHybridActorCriticGRU(nn.Module):
         self.hidden_dim = hidden_dim
         self.sequence_length = sequence_length
 
-        # Encoder avec connexions résiduelles
+        
         self.encoder = nn.Sequential(
             nn.Linear(state_dim, 128),
             nn.LayerNorm(128),
@@ -30,7 +30,8 @@ class EnhancedHybridActorCriticGRU(nn.Module):
             nn.LayerNorm(64)
         )
 
-        # GRU pour capturer les dépendances temporelles
+        
+        
         self.gru = nn.GRU(
             input_size=64,
             hidden_size=hidden_dim,
@@ -39,17 +40,19 @@ class EnhancedHybridActorCriticGRU(nn.Module):
             dropout=0.15
         )
 
-        # Attention Module
+        
         self.attention = nn.Sequential(
             nn.Linear(hidden_dim, hidden_dim),
             nn.Tanh(),
             nn.Linear(hidden_dim, 1)
         )
 
-        # Calcul des ratios
+        
+        
         self.n_ratios = (state_dim * (state_dim - 1)) // 2
 
-        # Actor Network
+        
+        
         self.actor = nn.Sequential(
             nn.Linear(hidden_dim + self.n_ratios, 128),
             nn.LayerNorm(128),
@@ -61,7 +64,8 @@ class EnhancedHybridActorCriticGRU(nn.Module):
             nn.Linear(64, action_dim)
         )
 
-        # Critic Network
+        
+        
         self.critic = nn.Sequential(
             nn.Linear(hidden_dim, 128),
             nn.LayerNorm(128),
@@ -90,27 +94,29 @@ class EnhancedHybridActorCriticGRU(nn.Module):
     def forward(self, state_sequence, hidden_state=None):
         batch_size, seq_len, state_dim = state_sequence.size()
         
-        # Encoder avec skip connection
+        
+        
         encoded_states = self.encoder(state_sequence.view(-1, state_dim)) + self.encoder_residual(state_sequence.view(-1, state_dim))
         encoded_sequence = encoded_states.view(batch_size, seq_len, -1)
         
-        # GRU
+        
         if hidden_state is None:
             hidden_state = self.init_hidden(batch_size, state_sequence.device)
         gru_out, new_hidden = self.gru(encoded_sequence, hidden_state)
 
-        # Attention
+        
         attention_weights = torch.softmax(self.attention(gru_out).squeeze(-1), dim=1).unsqueeze(-1)
         context_vector = torch.sum(gru_out * attention_weights, dim=1, keepdim=True)
-        gru_out = gru_out + context_vector  # Ajouter le contexte
+        gru_out = gru_out + context_vector 
+        
 
-        # Calcul des ratios
+        
         ratios_sequence = self.compute_ratios(state_sequence)
         
-        # Concaténation
+        
         actor_inputs = torch.cat([gru_out, ratios_sequence], dim=-1)
         
-        # Actor et Critic
+        
         action_logits = self.actor(actor_inputs)
         action_probs = torch.softmax(action_logits, dim=-1)
         values = self.critic(gru_out)
@@ -128,7 +134,7 @@ class PPOAgent_Recurrent_Seq:
         self.actor_critic = EnhancedHybridActorCriticGRU(state_dim, action_dim,sequence_length=self.sequence_length).to(self.device)
         self.optimizer = optim.Adam(self.actor_critic.parameters(), lr=config.get('learning_rate', 3e-4))
         
-        # Configuration
+        
         self.clip_epsilon = config.get('clip_epsilon', 0.2)
         self.value_coef = config.get('value_coef', 0.5)
         self.entropy_coef = config.get('entropy_coef', 0.01)
@@ -136,15 +142,17 @@ class PPOAgent_Recurrent_Seq:
         self.batch_size = config.get('batch_size', 64)
         self.gamma = config.get('gamma', 0.99)
         
-        # Buffer pour stocker les transitions
+        
+        
         self.buffer = []
 
 
         self.prioritized_buffer = PrioritizedBufferReccurent(
             capacity=10000,
             sequence_length=self.sequence_length,
-            alpha=0.6,  # Contrôle l'importance de la priorité
-            beta=0.4    # Commence bas et augmente vers 1
+            alpha=0.6,  
+            beta=0.4    
+            
         )
         self.epsilon = 0.1
 
@@ -172,7 +180,7 @@ class PPOAgent_Recurrent_Seq:
             episode_states = []
             is_heuristic_episode = np.random.random() < 0.8
             
-            # Dans initialize_buffer_with_heuristic
+            
             while not done:
                 if is_heuristic_episode:
                     action = self.heuristic.select_action(state)
@@ -182,12 +190,11 @@ class PPOAgent_Recurrent_Seq:
                 next_state, reward, done, trunc, _ = env.step(action)
                 episode_reward+=reward
                 episode_states.append(state)
-                # Calculer la valeur avec le modèle
+                
                 state_sequence = torch.FloatTensor([state]).unsqueeze(0).to(self.device)
                 with torch.no_grad():
                     _, value,_ = self.actor_critic(state_sequence)
                 
-                # Ajouter au buffer
                 self.prioritized_buffer.add(
                     state=state,
                     action=action,
@@ -207,7 +214,7 @@ class PPOAgent_Recurrent_Seq:
             else:
                 random_rewards.append(episode_reward)
         
-        # Affichage des statistiques et graphiques (inchangé)
+        
         if heuristic_rewards:
             avg_heuristic = np.mean(heuristic_rewards)
             std_heuristic = np.std(heuristic_rewards)
@@ -219,7 +226,7 @@ class PPOAgent_Recurrent_Seq:
             print(f"Random episodes ({len(random_rewards)}): Average reward = {avg_random:.2f} ± {std_random:.2f}")
         
 
-        # Sauvegarde des trajectoires (inchangé)
+        
         if heuristic_states:
             for episode_idx, states in enumerate(heuristic_states[:1]):
                 df = pd.DataFrame(states, columns=['T1', 'T1star', 'T2', 'T2star', 'V', 'E'])
@@ -246,8 +253,7 @@ class PPOAgent_Recurrent_Seq:
 
         
     def select_action(self, state_sequence):
-        # Si la séquence n'est pas assez longue
-        # Si la séquence n'est pas assez longue, utiliser l'heuristique
+
         if state_sequence.size(1) < self.sequence_length or np.random.random()<self.heuristic_prob:
             current_state = state_sequence[:, -1].cpu().numpy()[0]
             action = self.heuristic.select_action(current_state)
@@ -256,17 +262,16 @@ class PPOAgent_Recurrent_Seq:
 
             return action,value[:, -1, 0].item(), 0
 
-        # Décision entre exploration et exploitation
         if np.random.random() < self.epsilon:
-            # Exploration : action aléatoire
+            
             action = np.random.randint(4)
             with torch.no_grad():
                 _, value , _ = self.actor_critic(state_sequence)
             return action, value[:, -1, 0].item(), 0
         
-        # Exploitation : utiliser le modèle avec la séquence complète
+        
         action_probs, value , _ = self.actor_critic(state_sequence)
-        # Prendre la dernière prédiction
+        
         last_probs = action_probs[0, -1]  # [action_dim]
         last_value = value[0, -1, 0]  # scalaire
         
@@ -295,7 +300,7 @@ class PPOAgent_Recurrent_Seq:
         
         batch_size, seq_len = states.shape[0], states.shape[1]
         
-        # Calcul des returns et advantages
+        
         with torch.no_grad():
             returns = torch.zeros_like(rewards)
             advantages = torch.zeros_like(rewards)
@@ -312,59 +317,59 @@ class PPOAgent_Recurrent_Seq:
             advantages = advantages * weights.unsqueeze(1)
             advantages = (advantages - advantages.mean()) / (advantages.std() + 1e-8)
         
-        # Multiple epochs d'optimisation
+        
         for _ in range(10):
-            # Forward pass avec état caché initialisé à zéro pour l'entrainement
+            
             action_probs, values, _ = self.actor_critic(states)  # [batch_size, seq_len, action_dim], [batch_size, seq_len, 1]
             values = values.squeeze(-1)  # [batch_size, seq_len]
             
-            # Reshape pour le calcul des log probs
+            
             flat_action_probs = action_probs.reshape(-1, action_probs.size(-1))  # [batch_size*seq_len, action_dim]
             flat_actions = actions.reshape(-1)  # [batch_size*seq_len]
             
-            # Calculer les log probs
+            
             dist = Categorical(flat_action_probs)
             new_log_probs = dist.log_prob(flat_actions)
             new_log_probs = new_log_probs.view(batch_size, seq_len)  # [batch_size, seq_len]
             
-            # Calcul du ratio PPO pour chaque pas de temps
+            
             ratios = torch.exp(new_log_probs - old_log_probs)  # [batch_size, seq_len]
             surr1 = ratios * advantages
             surr2 = torch.clamp(ratios, 1-self.clip_epsilon, 1+self.clip_epsilon) * advantages
             
-            # Pertes moyennées sur toute la séquence
+            
             actor_loss = -torch.min(surr1, surr2).mean()
             critic_loss = nn.MSELoss()(values, returns)
             entropy_loss = -dist.entropy().mean()
             
             loss = actor_loss + self.value_coef * critic_loss + self.entropy_coef * entropy_loss
             
-            # Optimisation
+            
             self.optimizer.zero_grad()
             loss.backward()
             nn.utils.clip_grad_norm_(self.actor_critic.parameters(), self.max_grad_norm)
             self.optimizer.step()
             
-            # Mise à jour des priorités
+            
             td_errors = (returns - values).detach().abs().mean(dim=1).cpu().numpy()
             self.prioritized_buffer.update_priorities(indices, td_errors)
 
     
     def train(self, env, max_episode):
-        # Initialisation du logging et chemins de sauvegarde
+        
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         base_path = os.path.join("models", f"ppo_agent_{timestamp}")
         if not os.path.exists(base_path):
             os.makedirs(base_path)
             
-        # Initialisation des métriques
+        
         episode_rewards_all=[]
         episode_lengths = []
         V0_list = []
         discounted_rewards = []
         action_list = np.zeros(4)
         
-        # Paramètres du curriculum
+        
         initial_max_steps = 50
         final_max_steps = 200
         curriculum_length = max_episode // 4
@@ -376,7 +381,7 @@ class PPOAgent_Recurrent_Seq:
                 return current_length
             return final_max_steps
         
-        # Initialisation du buffer avec des trajectoires aléatoires
+        
         base_bath_graph=os.path.join(base_path,"graphs")
         self.initialize_buffer_with_heuristic(env,save_dir=base_bath_graph)
         self.heuristic_prob = self.heuristic_prob_beginning
@@ -397,25 +402,25 @@ class PPOAgent_Recurrent_Seq:
             
             max_steps_current = get_max_steps(episode)
             while step < max_steps_current:
-                # Construire la séquence d'états pour le GRU
+                
                 episode_states.append(state)
-                # Si nous avons assez d'états pour former une séquence
+                
                 state_sequence = torch.FloatTensor(np.array(episode_states[-self.sequence_length:] 
                             if len(episode_states) >= self.sequence_length 
                             else episode_states)).unsqueeze(0).to(self.device)
                 
-                # Sélection de l'action
+                
                 action, value, log_prob = self.select_action(state_sequence)
                 if V0 is None:
                     V0 = value
 
-                # Update heuristic probability
+                
                 self.heuristic_prob = initial_heuristic_prob * (1 - episode/max_episode) + self.heuristic_prob_end * (episode/max_episode)
                 
-                # Exécuter l'action
+                
                 next_state, reward, done, trunc, _ = env.step(action)
                 
-                # Stocker les informations
+                
                 episode_actions.append(action)
                 episode_rewards.append(reward)
                 episode_values.append(value)
@@ -430,7 +435,8 @@ class PPOAgent_Recurrent_Seq:
                     
                 state = next_state
 
-            # À la fin de l'épisode, on ajoute toutes les transitions au buffer
+            
+            
             for t in range(len(episode_states)):
                 self.prioritized_buffer.add(
                     state=episode_states[t],
@@ -441,30 +447,30 @@ class PPOAgent_Recurrent_Seq:
                     log_prob=episode_log_probs[t]
                 )
 
-            # Optimisation après chaque épisode
+            
             for _ in range(1):
                 self.update()
             
             
-            # Mise à jour des métriques
+            
             episode_rewards_all.append(episode_reward)
             episode_lengths.append(step)
             V0_list.append(V0)
             
-            # Logging
+            
             print(f"Episode {episode:3d}, "
                 f"episode return {episode_reward:4.1f}, "
                 f"length {step:3d}/{max_steps_current}, "
                 f"V0 {V0:4.1f}, "
                 f"action distribution {action_list}")
             
-            # Sauvegarde périodique
+            
             if (episode + 1) % 10 == 0:
                 save_name = f"model_ep{episode+1}_reward{int(episode_reward)}.pth"
                 save_path = os.path.join(base_path, "models")
                 self.save(save_path,save_name)
                 
-                # Création et sauvegarde du graphique
+                
                 plt.figure(figsize=(10, 6))
                 plt.plot(episode_rewards_all, label='Episode Return')
                 plt.axhline(y=3432807, color='r', linestyle='--', label='Seuil 3432807')
@@ -480,7 +486,7 @@ class PPOAgent_Recurrent_Seq:
                 plt.savefig(plot_path)
                 plt.close()
                 
-            # Réinitialisation du compteur d'actions
+            
             action_list = np.zeros(4)
         
         return [episode_lengths, discounted_rewards, episode_rewards, V0_list]
@@ -509,7 +515,7 @@ class PPOAgent_Recurrent_Seq:
         try:
             checkpoint = torch.load(path)
             
-            # Restauration des paramètres de configuration
+            
             config = checkpoint['config']
             self.clip_epsilon = config['clip_epsilon']
             self.value_coef = config['value_coef']
@@ -518,7 +524,7 @@ class PPOAgent_Recurrent_Seq:
             self.batch_size = config['batch_size']
             self.gamma = config['gamma']
             
-            # Restauration des poids et de l'optimizer
+            
             self.actor_critic.load_state_dict(checkpoint['actor_critic_state_dict'])
             self.optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
             

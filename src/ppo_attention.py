@@ -22,19 +22,18 @@ class MultiHeadAttention(nn.Module):
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         batch_size = x.size(0)
         
-        # Linear projections and reshape for multi-head
         q = self.q_linear(x).view(batch_size, -1, self.n_heads, self.head_dim).transpose(1, 2)
         k = self.k_linear(x).view(batch_size, -1, self.n_heads, self.head_dim).transpose(1, 2)
         v = self.v_linear(x).view(batch_size, -1, self.n_heads, self.head_dim).transpose(1, 2)
         
-        # Scaled dot-product attention
+        
         scores = torch.matmul(q, k.transpose(-2, -1)) / torch.sqrt(torch.tensor(self.head_dim, dtype=torch.float32))
         attention_weights = F.softmax(scores, dim=-1)
         
-        # Apply attention to values
+        
         attended = torch.matmul(attention_weights, v)
         
-        # Reshape and project
+        
         attended = attended.transpose(1, 2).contiguous().view(batch_size, -1, self.state_dim)
         return self.projection(attended)
 
@@ -60,25 +59,25 @@ class ActorCritic(nn.Module):
     def __init__(self, state_dim: int, action_dim: int, n_attention_blocks: int = 3):
         super().__init__()
         
-        # Shared features
+        
         self.shared = nn.Sequential(
             nn.Linear(state_dim, 128),
             nn.ReLU()
         )
         
-        # Attention blocks
+        
         self.attention_blocks = nn.ModuleList([
             AttentionBlock(128) for _ in range(n_attention_blocks)
         ])
         
-        # Actor (policy) head
+        
         self.actor = nn.Sequential(
             nn.Linear(128, 64),
             nn.ReLU(),
             nn.Linear(64, action_dim)
         )
         
-        # Critic (value) head
+        
         self.critic = nn.Sequential(
             nn.Linear(128, 64),
             nn.ReLU(),
@@ -88,11 +87,11 @@ class ActorCritic(nn.Module):
     def forward(self, state: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
         x = self.shared(state)
         
-        # Apply attention blocks
+        
         for block in self.attention_blocks:
             x = block(x)
             
-        # Get policy and value
+        
         action_probs = F.softmax(self.actor(x), dim=-1)
         value = self.critic(x)
         
@@ -136,13 +135,13 @@ class PPOAgent_attention:
         max_steps: int = 200,
         batch_size: int = 64
     ):
-        # Initialisation du logging et chemins de sauvegarde
+        
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         base_path = os.path.join("models", f"ppo_agent_{timestamp}")
         if not os.path.exists(base_path):
             os.makedirs(base_path)
             
-        # Initialisation des métriques
+        
         episode_rewards_all = []
         episode_lengths = []
         
@@ -150,7 +149,7 @@ class PPOAgent_attention:
             state, _ = env.reset()
             episode_reward = 0
             
-            # Collecte des données
+            
             states, actions, rewards = [], [], []
             values, log_probs = [], []
             
@@ -171,16 +170,16 @@ class PPOAgent_attention:
                 if done:
                     break
             
-            # Calcul des avantages
+            
             advantages = self._compute_advantages(rewards, values)
             
-            # Mise à jour du réseau
+            
             self._update_network(
                 states, actions, log_probs,
                 advantages, values, batch_size
             )
             
-            # Logging et sauvegarde
+            
             episode_rewards_all.append(episode_reward)
             episode_lengths.append(step + 1)
             
@@ -191,7 +190,7 @@ class PPOAgent_attention:
                 save_path = os.path.join(base_path, "models")
                 self.save(save_path,save_name)
                 
-                # Création et sauvegarde du graphique
+                
                 plt.figure(figsize=(10, 6))
                 plt.plot(episode_rewards_all, label='Episode Return')
                 plt.axhline(y=3432807, color='r', linestyle='--', label='Seuil 3432807')
@@ -240,7 +239,7 @@ class PPOAgent_attention:
         old_log_probs = torch.FloatTensor(old_log_probs).to(self.device)
         values = torch.FloatTensor(values).to(self.device)
         
-        for _ in range(10):  # PPO epochs
+        for _ in range(10): 
             for idx in range(0, len(states), batch_size):
                 batch_states = states[idx:idx + batch_size]
                 batch_actions = actions[idx:idx + batch_size]
@@ -253,22 +252,22 @@ class PPOAgent_attention:
                 dist = torch.distributions.Categorical(action_probs)
                 current_log_probs = dist.log_prob(batch_actions)
                 
-                # Policy loss
+                
                 ratios = torch.exp(current_log_probs - batch_log_probs)
                 surr1 = ratios * batch_advantages
                 surr2 = torch.clamp(ratios, 1-self.epsilon, 1+self.epsilon) * batch_advantages
                 policy_loss = -torch.min(surr1, surr2).mean()
                 
-                # Value loss
+                
                 value_loss = F.mse_loss(current_values.squeeze(-1), batch_values)
                 
-                # Entropy bonus
+                
                 entropy_loss = -dist.entropy().mean()
                 
-                # Total loss
+                
                 loss = policy_loss + self.c1 * value_loss + self.c2 * entropy_loss
                 
-                # Optimize
+                
                 self.optimizer.zero_grad()
                 loss.backward()
                 self.optimizer.step()
