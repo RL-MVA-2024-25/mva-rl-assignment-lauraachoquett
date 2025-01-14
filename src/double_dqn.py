@@ -41,12 +41,9 @@ class double_dqn_agent:
         if len(self.memory) > self.batch_size:
             X, A, R, Y, D = self.memory.sample(self.batch_size)
             
-            # Double DQN logic
             self.model.eval()
             with torch.no_grad():
-                # Model choisit l'action
                 best_actions = self.model(Y).argmax(dim=1)
-                # Target évalue
                 QYmax = self.target_model(Y).gather(1, best_actions.unsqueeze(1)).squeeze(1)
             self.model.train()
             
@@ -59,10 +56,10 @@ class double_dqn_agent:
 
     def update_target(self):
         if self.update_target_strategy == 'replace':
-            # Hard update
+            
             self.target_model.load_state_dict(self.model.state_dict())
         elif self.update_target_strategy == 'ema':
-            # Soft update (EMA)
+            
             for target_param, model_param in zip(self.target_model.parameters(), self.model.parameters()):
                 target_param.data.copy_(
                     self.update_target_tau * model_param.data + 
@@ -89,7 +86,7 @@ class double_dqn_agent:
             if step > self.epsilon_delay:
                 epsilon = max(self.epsilon_min, epsilon-self.epsilon_step)
 
-            # select epsilon-greedy action
+            
             if np.random.rand() < epsilon:
                 action = env.action_space.sample()
             else:
@@ -109,7 +106,7 @@ class double_dqn_agent:
                 if episode % self.update_target_freq == 0:
                     self.update_target()
 
-            # next transition
+            
             step += 1
             if terminated:
                 episode += 1
@@ -127,21 +124,21 @@ class double_dqn_agent:
                     save_name = f"model_ep{episode}_reward{int(episode_cum_reward)}.pth"
                     save_path = os.path.join(base_path, save_name)
                     self.save(save_path)
-                    # Création et sauvegarde du graphique
+                    
                     plt.figure(figsize=(10, 6))
                     plt.plot(episode_return, label='Episode Return')
 
-                    # Ajout des lignes horizontales
+                    
                     plt.axhline(y=3432807, color='r', linestyle='--', label='Seuil 3432807')
                     plt.axhline(y=1e8, color='g', linestyle='--', label='Seuil 1e8')
-                    plt.yscale('log')  # Passage en échelle logarithmique
+                    plt.yscale('log')  
                     plt.xlabel('Episode')
                     plt.ylabel('Cumulative Reward')
                     plt.title(f'Training Progress - Episode {episode}')
                     plt.legend()
                     plt.grid(True)
                     
-                    # Sauvegarde du graphique
+                    
                     plot_name = f"progress.png"
                     plot_path = os.path.join(base_path, plot_name)
                     plt.savefig(plot_path)
@@ -152,18 +149,18 @@ class double_dqn_agent:
         return episode_return
     
     def save(self, path):
-        # Création du dossier si n'existe pas
+        
         directory = os.path.dirname(path)
         if directory and not os.path.exists(directory):
             os.makedirs(directory)
         
-        # Option 1 : Avec timestamp
+        
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         filename, extension = os.path.splitext(path)
         path_with_timestamp = f"{filename}_{timestamp}{extension}"
 
         state_dict = {
-            # Paramètres de configuration
+            
             'config': {
                 'nb_actions': self.nb_actions,
                 'gamma': self.gamma,
@@ -182,14 +179,14 @@ class double_dqn_agent:
                 'monitoring_nb_trials': self.monitoring_nb_trials
             },
             
-            # États des modèles
+            
             'model_state': self.model.state_dict(),
             'target_model_state': self.target_model.state_dict(),
             
-            # État de l'optimiseur
+            
             'optimizer_state': self.optimizer.state_dict(),
             
-            # État du ReplayBuffer
+            
             'memory': {
                 'data': self.memory.data[:self.memory.size],
                 'size': self.memory.size
@@ -205,7 +202,7 @@ class double_dqn_agent:
         try:
             state_dict = torch.load(path, map_location=device)
             
-            # Restauration des paramètres de configuration
+            
             config = state_dict['config']
             self.nb_actions = config['nb_actions']
             self.gamma = config['gamma']
@@ -221,14 +218,15 @@ class double_dqn_agent:
             self.update_target_tau = config['update_target_tau']
             self.monitoring_nb_trials = config['monitoring_nb_trials']
             
-            # Chargement des états des modèles
+            
             self.model.load_state_dict(state_dict['model_state'])
             self.target_model.load_state_dict(state_dict['target_model_state'])
             
-            # Chargement de l'optimiseur
+            
+            
             self.optimizer.load_state_dict(state_dict['optimizer_state'])
             
-            # Restauration du ReplayBuffer
+            
             memory_state = state_dict['memory']
             self.memory.states[:memory_state['size']] = memory_state['states']
             self.memory.actions[:memory_state['size']] = memory_state['actions']
@@ -237,7 +235,7 @@ class double_dqn_agent:
             self.memory.dones[:memory_state['size']] = memory_state['dones']
             self.memory.size = memory_state['size']
             
-            # Passage en mode évaluation
+            
             self.model.eval()
             self.target_model.eval()
             

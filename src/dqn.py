@@ -40,13 +40,12 @@ class dqn_agent:
     def gradient_step(self):
         if len(self.memory) > self.batch_size:
             X, A, R, Y, D = self.memory.sample(self.batch_size)
-            # Calcul de QYmax en mode eval
             self.model.eval()
             with torch.no_grad():
                 QYmax = self.model(Y).max(1)[0].detach()
-            self.model.train()  # Retour en mode train
+            self.model.train()  
             
-            # Le reste comme avant
+            
             update = torch.addcmul(R, 1-D, QYmax, value=self.gamma)
             QXA = self.model(X).gather(1, A.to(torch.long).unsqueeze(1))
             loss = self.criterion(QXA, update.unsqueeze(1))
@@ -55,7 +54,7 @@ class dqn_agent:
             self.optimizer.step()
 
     def act(self,state,epsilon):
-        # select epsilon-greedy action
+        
         if np.random.rand() < epsilon:
             action = self.env.action_space.sample()
         else:
@@ -79,7 +78,7 @@ class dqn_agent:
         action_list = np.zeros(4)
         self.model.train()
         while episode < max_episode:
-            # update epsilon
+            
             if step > self.epsilon_delay:
                 epsilon = max(self.epsilon_min, epsilon-self.epsilon_step)
 
@@ -115,21 +114,22 @@ class dqn_agent:
                     save_name = f"model_ep{episode}_reward{int(episode_cum_reward)}.pth"
                     save_path = os.path.join(base_path, save_name)
                     self.save(save_path)
-                    # Création et sauvegarde du graphique
+                    
                     plt.figure(figsize=(10, 6))
                     plt.plot(episode_return, label='Episode Return')
 
-                    # Ajout des lignes horizontales
+                    
                     plt.axhline(y=3432807, color='r', linestyle='--', label='Seuil 3432807')
                     plt.axhline(y=1e8, color='g', linestyle='--', label='Seuil 1e8')
-                    plt.yscale('log')  # Passage en échelle logarithmique
+                    plt.yscale('log')  
+                
                     plt.xlabel('Episode')
                     plt.ylabel('Cumulative Reward')
                     plt.title(f'Training Progress - Episode {episode}')
                     plt.legend()
                     plt.grid(True)
                     
-                    # Sauvegarde du graphique
+                    
                     plot_name = f"progress.png"
                     plot_path = os.path.join(base_path, plot_name)
                     plt.savefig(plot_path)
@@ -140,18 +140,18 @@ class dqn_agent:
         return episode_return
     
     def save(self, path):
-        # Création du dossier si n'existe pas
+        
         directory = os.path.dirname(path)
         if directory and not os.path.exists(directory):
             os.makedirs(directory)
         
-        # Option 1 : Avec timestamp
+        
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         filename, extension = os.path.splitext(path)
         path_with_timestamp = f"{filename}_{timestamp}{extension}"
 
         state_dict = {
-            # Paramètres de configuration
+            
             'config': {
                 'nb_actions': self.nb_actions,
                 'gamma': self.gamma,
@@ -170,14 +170,14 @@ class dqn_agent:
                 'monitoring_nb_trials': self.monitoring_nb_trials
             },
             
-            # États des modèles
+            
             'model_state': self.model.state_dict(),
             'target_model_state': self.target_model.state_dict(),
             
-            # État de l'optimiseur
+            
             'optimizer_state': self.optimizer.state_dict(),
             
-            # État du ReplayBuffer
+            
             'memory': {
                 'data': self.memory.data[:self.memory.size],
                 'size': self.memory.size
@@ -193,7 +193,7 @@ class dqn_agent:
         try:
             state_dict = torch.load(path, map_location=device)
             
-            # Restauration des paramètres de configuration
+            
             config = state_dict['config']
             self.nb_actions = config['nb_actions']
             self.gamma = config['gamma']
@@ -209,14 +209,14 @@ class dqn_agent:
             self.update_target_tau = config['update_target_tau']
             self.monitoring_nb_trials = config['monitoring_nb_trials']
             
-            # Chargement des états des modèles
+            
             self.model.load_state_dict(state_dict['model_state'])
             self.target_model.load_state_dict(state_dict['target_model_state'])
             
-            # Chargement de l'optimiseur
+            
             self.optimizer.load_state_dict(state_dict['optimizer_state'])
             
-            # Restauration du ReplayBuffer
+            
             memory_state = state_dict['memory']
             self.memory.states[:memory_state['size']] = memory_state['states']
             self.memory.actions[:memory_state['size']] = memory_state['actions']
@@ -225,7 +225,7 @@ class dqn_agent:
             self.memory.dones[:memory_state['size']] = memory_state['dones']
             self.memory.size = memory_state['size']
             
-            # Passage en mode évaluation
+            
             self.model.eval()
             self.target_model.eval()
             
