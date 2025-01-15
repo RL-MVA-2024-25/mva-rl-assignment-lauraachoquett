@@ -291,7 +291,8 @@ class PPOAgent:
         
         torch.save(state_dict, path_with_timestamp)
         
-    def load(self, path):
+    def load(self):
+        path = '/Users/laura/Documents/MVA/RL/mva-rl-assignment-lauraachoquett-main/models/ppo_agent_20250114_120223/models/best_model.pth'
         try:
             checkpoint = torch.load(path)
             

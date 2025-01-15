@@ -7,7 +7,7 @@ from copy import deepcopy
 #from dqn import dqn_agent
 #from double_dqn import double_dqn_agent
 #from double_dqn_trace import double_dqn_agent_trace
-#from ppo_dis import PPOAgent_test
+from ppo_dis import PPOAgent_test
 #import matplotlib.pyplot as plt 
 from utils import GreedyHeuristic
 #import matplotlib.lines as mlines
@@ -26,9 +26,17 @@ env = TimeLimit(
 class ProjectAgent:
     def __init__(self):
 
-        config = {
-            'agent_type': 'dueling_double_dqn',     
+        config= {
+            'agent_type': 'ppo',
+            'clip_epsilon': 0.1, 
+            'value_coef': 0.5,   
+            'entropy_coef': 0.01, 
+            'max_grad_norm': 0.5,
+            'batch_size': 512,    
+            'learning_rate': 1e-4,
+            'gamma': 0.995,       
         }
+
         
         self.env=env
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -42,6 +50,8 @@ class ProjectAgent:
 
         if agent_type == 'dueling_double_dqn':
             self.agent = DoubleDuelingDQN()
+        elif agent_type == 'ppo':
+            self.agent = PPOAgent_test(config=config)
 
         else:
             raise ValueError(f"Type d'agent non supporté: {agent_type}")

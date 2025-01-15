@@ -272,15 +272,16 @@ class PPOAgent_attention:
                 loss.backward()
                 self.optimizer.step()
     
-    def save(self, path: str, filename: str):
+    def save(self, path: str):
         if not os.path.exists(path):
             os.makedirs(path)
         torch.save({
             'model_state_dict': self.actor_critic.state_dict(),
             'optimizer_state_dict': self.optimizer.state_dict()
-        }, os.path.join(path, filename))
+        }, os.path.join(path, "best_model"))
     
-    def load(self, path: str):
+    def load(self):
+        path = '/Users/laura/Documents/MVA/RL/mva-rl-assignment-lauraachoquett-main/models/ppo_agent_20250114_120223/models/best_model.pth'
         checkpoint = torch.load(path)
         self.actor_critic.load_state_dict(checkpoint['model_state_dict'])
         self.optimizer.load_state_dict(checkpoint['optimizer_state_dict'])

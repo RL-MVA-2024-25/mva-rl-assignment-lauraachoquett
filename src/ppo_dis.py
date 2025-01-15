@@ -235,7 +235,19 @@ class PPOAgent_test:
             'heuristic_actions': heuristic_actions,
             'heuristic_states': heuristic_states}
 
-
+    def act(self,state) : 
+        state = np.sign(state)*np.log(1+np.abs(state))
+        if np.random.random() < self.heuristic_prob:
+            action = self.heuristic.select_action(state)
+            
+        if np.random.random() < self.epsilon:
+            action = np.random.randint(4)
+        
+        state_tensor = torch.FloatTensor(state).unsqueeze(0).to(self.device)
+        action_probs, value = self.actor_critic(state_tensor)
+        action = action_probs.argmax()
+            
+        return action.item()
         
     def select_action(self, state):
     
@@ -486,8 +498,8 @@ class PPOAgent_test:
             self.max_grad_norm = config['max_grad_norm']
             self.batch_size = config['batch_size']
             self.gamma = config['gamma']
-            self.epsilon = 0.1
-            self.heuristic_prob =  0.15
+            self.epsilon = 0.01
+            self.heuristic_prob =  0.05
             
             self.actor_critic.load_state_dict(checkpoint['actor_critic_state_dict'])
             self.optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
