@@ -1,6 +1,5 @@
 from gymnasium.wrappers import TimeLimit
-# from env_hiv import HIVPatient
-from fast_env import FastHIVPatient
+from env_hiv import HIVPatient
 import torch
 import torch.nn as nn
 import numpy as np
@@ -129,7 +128,7 @@ class Dueling_DQN(nn.Module):
     
 
 
-env = TimeLimit(env=FastHIVPatient(domain_randomization=True), max_episode_steps=200)  
+env = TimeLimit(env=HIVPatient(domain_randomization=True), max_episode_steps=200)  
 
 
 class DoubleDuelingDQN:

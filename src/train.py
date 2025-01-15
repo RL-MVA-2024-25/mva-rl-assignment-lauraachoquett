@@ -1,6 +1,5 @@
 from gymnasium.wrappers import TimeLimit
 from env_hiv import HIVPatient
-from fast_env import FastHIVPatient
 import torch
 import torch.nn as nn
 import numpy as np
@@ -117,7 +116,7 @@ class ProjectAgent:
         
         # Environnement simulé
         env = TimeLimit(
-            env=FastHIVPatient(domain_randomization=True), max_episode_steps=200
+            env=HIVPatient(domain_randomization=True), max_episode_steps=200
         )
         
         # Collecte des données
