@@ -5,12 +5,9 @@ import torch.optim as optim
 from torch.distributions import Categorical
 import os
 from datetime import datetime
-import matplotlib.pyplot as plt
-from utils import PrioritizedBuffer
 from utils import GreedyHeuristic
-import pandas as pd
-from statistics import mean
 from utils import SimpleBuffer
+
 class HybridActorCritic(nn.Module):
     def __init__(self, state_dim=6, action_dim=4):
         super().__init__()
@@ -199,34 +196,7 @@ class PPOAgent_test:
             all_actions = np.concatenate(heuristic_actions)
             action_counts = np.bincount(all_actions, minlength=4)
 
-            plt.subplot(1, 2, 2)
-            plt.bar(range(4), action_counts, color=['grey', 'blue', 'green', 'red'])
-            plt.title('Heuristic Action Distribution')
-            plt.xlabel('Action')
-            plt.ylabel('Count')
-            plt.xticks(range(4), ['No Drug', 'RTI', 'PI', 'Both'])
 
-        plt.tight_layout()
-        plt.show()
-
-        
-        if heuristic_states:
-            for episode_idx, states in enumerate(heuristic_states[:1]):  # Limité au premier épisode pour cet exemple
-                df = pd.DataFrame(states, columns=['T1', 'T1star', 'T2', 'T2star', 'V', 'E'])
-                df.to_csv(f"{save_dir}/heuristic_episode_{episode_idx}_states.csv", index=False)
-                print(f"Saved states of heuristic episode {episode_idx} to {save_dir}/heuristic_episode_{episode_idx}_states.csv")
-                
-                
-                for column in df.columns:
-                    plt.figure()
-                    plt.plot(df[column])
-                    plt.title(f"Evolution of {column} in episode {episode_idx}")
-                    plt.xlabel("Time step")
-                    plt.ylabel(column)
-                    plt.savefig(f"{save_dir}/heuristic_episode_{episode_idx}_{column}.png")
-                    print(f"Saved plot for {column} of heuristic episode {episode_idx} to {save_dir}/heuristic_episode_{episode_idx}_{column}.png")
-                    plt.close()
-        
         print(f"\nBuffer initialized with {self.prioritized_buffer.size} transitions")
         
         return {
@@ -442,23 +412,7 @@ class PPOAgent_test:
                 base_path_model =  os.path.join(base_path, "models")
         
                 self.save(base_path_model,save_name)
-                
-                
-                plt.figure(figsize=(10, 6))
-                plt.plot(episode_rewards, label='Episode Return')
-                plt.axhline(y=3432807, color='r', linestyle='--', label='Seuil 3432807')
-                plt.axhline(y=1e8, color='g', linestyle='--', label='Seuil 1e8')
-                plt.yscale('log')
-                plt.xlabel('Episode')
-                plt.ylabel('Cumulative Reward')
-                plt.title(f'Training Progress - Episode {episode+1}')
-                plt.legend()
-                plt.grid(True)
-                
-                plot_path = os.path.join(base_path, "progress.png")
-                plt.savefig(plot_path)
-                plt.close()
-                
+      
             
             action_list = np.zeros(4)
         
@@ -498,8 +452,8 @@ class PPOAgent_test:
             self.max_grad_norm = config['max_grad_norm']
             self.batch_size = config['batch_size']
             self.gamma = config['gamma']
-            self.epsilon = 0.01
-            self.heuristic_prob =  0.05
+            self.epsilon = 0.001
+            self.heuristic_prob =  0.001
             
             self.actor_critic.load_state_dict(checkpoint['actor_critic_state_dict'])
             self.optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
