@@ -358,7 +358,7 @@ class DoubleDuelingDQN:
         print(f"Model saved to {os.path.join(path, 'best_model.pth')}")
 
     def load(self):
-        file_path = "./models/dueling_double_dqn_best/best_model.pth"
+        file_path = "models/dueling_double_dqn_best/best_model.pth"
         self.model_policy.load_state_dict(torch.load(file_path))
         self.epsilon=0.01
         self.model_policy.eval()
