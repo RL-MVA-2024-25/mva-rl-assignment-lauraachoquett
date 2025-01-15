@@ -55,7 +55,6 @@ class Dueling_DQN_Enhanced(nn.Module):
         values = self.value_stream(features)
         advantages = self.advantage_stream(features)
         
-        # Normalisation des avantages pour une meilleure stabilité
         advantages_mean = advantages.mean(dim=1, keepdim=True)
         advantages_std = advantages.std(dim=1, keepdim=True) + 1e-6
         normalized_advantages = (advantages - advantages_mean) / advantages_std
@@ -66,7 +65,6 @@ class Dueling_DQN_Enhanced(nn.Module):
     @staticmethod
     def _initialize_weights(m):
         if isinstance(m, nn.Linear):
-            # Initialisation avec un facteur d'échelle adaptatif
             fan_in = m.weight.data.size()[0]
             scale = 1 / np.sqrt(fan_in)
             nn.init.orthogonal_(m.weight.data, gain=scale)
@@ -361,7 +359,7 @@ class DoubleDuelingDQN:
         print(f"Model saved to {os.path.join(path, 'best_model.pth')}")
 
     def load(self):
-        file_path = "/mva-rl-assignment-lauraachoquett-main/models/dueling_double_dqn_best/best_model.pth"
+        file_path = "./models/dueling_double_dqn_best/best_model.pth"
         self.model_policy.load_state_dict(torch.load(file_path))
         self.epsilon=0.01
         self.model_policy.eval()
