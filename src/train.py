@@ -4,16 +4,13 @@ import torch
 import torch.nn as nn
 import numpy as np
 from copy import deepcopy
-from dqn import dqn_agent
-from double_dqn import double_dqn_agent
-from double_dqn_trace import double_dqn_agent_trace
-from ppo_dis import PPOAgent_test
-import gymnasium as gym 
-import matplotlib.pyplot as plt 
-import pandas as pd
+#from dqn import dqn_agent
+#from double_dqn import double_dqn_agent
+#from double_dqn_trace import double_dqn_agent_trace
+#from ppo_dis import PPOAgent_test
+#import matplotlib.pyplot as plt 
 from utils import GreedyHeuristic
-import os
-import matplotlib.lines as mlines
+#import matplotlib.lines as mlines
 from dueling_double_dqn import DoubleDuelingDQN
 
 env = TimeLimit(
@@ -43,25 +40,7 @@ class ProjectAgent:
         self.heuristic_prob = 0.1
         agent_type = config.get('agent_type', 'dqn') 
 
-        if agent_type == 'dqn':
-            self.model = self._build_dqn()
-            self.agent = dqn_agent(config, self.model)
-
-        elif agent_type == 'double_dqn_trace':
-            self.model = self._build_dqn()
-            self.agent = double_dqn_agent_trace(config, self.model)
-
-        elif agent_type == 'double_dqn':
-            self.model = self._build_dqn()
-            self.agent = double_dqn_agent(config, self.model)
-
-        elif agent_type == 'ppo':
-            self.agent = PPOAgent_test(
-                config=config,
-                state_dim=6, 
-                action_dim=4,
-            )
-        elif agent_type == 'dueling_double_dqn':
+        if agent_type == 'dueling_double_dqn':
             self.agent = DoubleDuelingDQN()
 
         else:
@@ -101,129 +80,6 @@ class ProjectAgent:
             nn.ReLU(), 
             nn.Linear(self.nb_neurons, self.n_action)
         ).to(self.device)
-    
-    def test_heuristic(self, save_dir='./graphs_PostcrisisHeuristic_random_patient'):
-        """Initialise le buffer avec un mélange de trajectoires heuristiques et aléatoires"""
-        print("Initializing buffer with heuristic and random trajectories...")
-        if not os.path.exists(save_dir):
-            os.makedirs(save_dir)
-        heuristic_rewards = []
-        random_rewards = []
-        heuristic_actions = []
-        heuristic_states = []
-        random_actions = []
-        random_states = []
-        
-        # Environnement simulé
-        env = TimeLimit(
-            env=HIVPatient(domain_randomization=True), max_episode_steps=200
-        )
-        
-        # Collecte des données
-        for episode in range(20):
-            state, _ = env.reset()
-            done = False
-            episode_reward = 0
-            episode_actions = []
-            episode_states = []
-            is_heuristic_episode = np.random.random() < 0.4
-            
-            while not done:
-                if is_heuristic_episode:
-                    action = self.heuristic.select_action(state)
-                    episode_actions.append(action)
-                    episode_states.append(state)
-                else:
-                    action = np.random.randint(4)
-                    episode_actions.append(action)
-                    episode_states.append(state)
-                
-                next_state, reward, done, trunc, _ = env.step(action)
-                episode_reward += reward
-                state = next_state
-                
-                if trunc:
-                    break
-            
-            if is_heuristic_episode:
-                heuristic_rewards.append(episode_reward)
-                heuristic_actions.append(episode_actions)
-                heuristic_states.append(episode_states)
-            else:
-                random_rewards.append(episode_reward)
-                random_actions.append(episode_actions)
-                random_states.append(episode_states)
-        
-        # Afficher les statistiques de récompense
-        if heuristic_rewards:
-            avg_heuristic = np.mean(heuristic_rewards)
-            std_heuristic = np.std(heuristic_rewards)
-            print(f"Heuristic episodes ({len(heuristic_rewards)}): Average reward = {avg_heuristic:.2f} ± {std_heuristic:.2f}")
-        
-        if random_rewards:
-            avg_random = np.mean(random_rewards)
-            std_random = np.std(random_rewards)
-            print(f"Random episodes ({len(random_rewards)}): Average reward = {avg_random:.2f} ± {std_random:.2f}")
-        
-        # Meilleur épisode heuristique
-        index_max = np.argmax(heuristic_rewards)
-        best_heuristic_states = np.array(heuristic_states[index_max])
-        best_heuristic_actions = np.array(heuristic_actions[index_max])
-        
-        # Meilleur épisode aléatoire
-        index_max_rd = np.argmax(random_rewards)
-        best_random_states = np.array(random_states[index_max_rd])
-        best_random_actions = np.array(random_actions[index_max_rd])
-        action_color_map = {
-            0: 'grey',   # Action 0 : 'No Drug' (rien)
-            1: 'blue',   # Action 1 : 'RTI'
-            2: 'green',  # Action 2 : 'PI'
-            3: 'red'     # Action 3 : 'Both'
-        }
-        def plot_episode(states, actions, title_prefix, save_prefix):
-            os.makedirs(save_dir, exist_ok=True)
-            df = pd.DataFrame(states, columns=['T1', 'T1star', 'T2', 'T2star', 'V', 'E'])
-            df.to_csv(f"{save_dir}/{save_prefix}_states.csv", index=False)
-            print(f"Saved states of {title_prefix.lower()} to {save_dir}/{save_prefix}_states.csv")
-            
-            colors = ['grey', 'blue', 'green', 'red']  
-            for column in df.columns:
-                plt.figure(figsize=(10, 6))
-                plt.plot(df[column], label=column, linewidth=1)
-                colors = [action_color_map[action] for action in actions]
-                plt.scatter(range(len(actions)), df[column], c=colors, s=10, label='Actions')
-                plt.yscale('log')  
-                plt.title(f"{title_prefix}: Evolution of {column}")
-                plt.xlabel("Time step")
-                plt.ylabel(column)
-                legend_elements = [
-                    mlines.Line2D([], [], marker='o', color='grey', markerfacecolor='grey', markersize=10, label='No Drug (Action 0)'),
-                    mlines.Line2D([], [], marker='o', color='blue', markerfacecolor='blue', markersize=10, label='RTI (Action 1)'),
-                    mlines.Line2D([], [], marker='o', color='green', markerfacecolor='green', markersize=10, label='PI (Action 2)'),
-                    mlines.Line2D([], [], marker='o', color='red', markerfacecolor='red', markersize=10, label='Both (Action 3)')
-                ]
-
-                plt.legend(handles=legend_elements, loc='best')
-                plt.savefig(f"{save_dir}/{save_prefix}_{column}.png")
-                print(f"Saved plot for {column} of {title_prefix.lower()} to {save_dir}/{save_prefix}_{column}.png")
-                plt.close()
-
-       
-        plot_episode(
-            best_heuristic_states, 
-            best_heuristic_actions, 
-            title_prefix="Best Heuristic Episode", 
-            save_prefix="heuristic_best_episode"
-        )
-        
-        plot_episode(
-            best_random_states, 
-            best_random_actions, 
-            title_prefix="Best Random Episode", 
-            save_prefix="random_best_episode"
-        )
-
-            
 
 config_double_dqn_trace = {'agent_type': 'double_dqn_trace',
               'lambda_trace':0.9,
