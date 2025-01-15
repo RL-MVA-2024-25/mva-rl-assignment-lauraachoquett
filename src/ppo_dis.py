@@ -179,7 +179,6 @@ class PPOAgent_test:
             else:
                 random_rewards.append(episode_reward)
         
-        # Afficher les statistiques de récompense
         if heuristic_rewards:
             avg_heuristic = np.mean(heuristic_rewards)
             std_heuristic = np.std(heuristic_rewards)
@@ -266,7 +265,7 @@ class PPOAgent_test:
 
         states = torch.sign(states) * torch.log(1 + torch.abs(states))
         actions = actions 
-        rewards = torch.sign(rewards) * torch.log(1 + torch.abs(rewards))
+        rewards = torch.sign(rewards) * torch.log1p(torch.abs(rewards))
         next_states = torch.sign(next_states) * torch.log(1 + torch.abs(next_states))
         
         
@@ -277,8 +276,14 @@ class PPOAgent_test:
             advantages = (returns - old_values)
             
             
+            # Normalisation robuste des avantages
+            advantages = torch.where(
+                torch.abs(advantages) > 1e3,
+                torch.sign(advantages) * (torch.log1p(torch.abs(advantages)) - 7.0),
+                advantages
+            )
             advantages = (advantages - advantages.mean()) / (advantages.std() + 1e-8)
-        
+                    
         
         for _ in range(10):
             action_probs, values = self.actor_critic(states)
@@ -402,9 +407,8 @@ class PPOAgent_test:
             
             if episode_reward > 1e9 and episode_reward>=max(reward_history):
                 print("Great epsiode detected !")
-                save_name = f"best_model.pth"
                 base_path_model =  os.path.join(base_path, "models")
-                self.save(base_path_model,save_name)
+                self.save(base_path_model)
 
             
             if (episode + 1) % 100 == 0:
@@ -418,11 +422,11 @@ class PPOAgent_test:
         
         return [episode_lengths, discounted_rewards, episode_rewards, V0_list]
     
-    def save(self, path,file_name):
+    def save(self, path):
         if not os.path.exists(path):
             os.makedirs(path)
             
-        final_path=os.path.join(path,file_name)        
+        final_path=os.path.join(path,"best_model")        
         state_dict = {
             'config': {
                 'clip_epsilon': self.clip_epsilon,

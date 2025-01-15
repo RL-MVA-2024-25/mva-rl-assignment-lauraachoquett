@@ -8,9 +8,7 @@ from copy import deepcopy
 #from double_dqn import double_dqn_agent
 #from double_dqn_trace import double_dqn_agent_trace
 from ppo_dis import PPOAgent_test
-#import matplotlib.pyplot as plt 
 from utils import GreedyHeuristic
-#import matplotlib.lines as mlines
 from dueling_double_dqn import DoubleDuelingDQN
 
 env = TimeLimit(
