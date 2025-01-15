@@ -7,7 +7,7 @@ import torch.nn.functional as F
 import os
 from copy import deepcopy
 import time
-import matplotlib.pyplot as plt
+#import matplotlib.pyplot as plt
 from evaluate import evaluate_HIV, evaluate_HIV_population
 from torch.optim.lr_scheduler import ReduceLROnPlateau
 
@@ -320,23 +320,7 @@ class DoubleDuelingDQN:
                     f"Episode time {(time.perf_counter() - self.episode_time):1.1f},",        
                     sep='')
             
-                if (episode + 1) % 10 == 0:
-                    
-                    
-                    plt.figure(figsize=(10, 6))
-                    plt.plot(episode_return, label='Episode Return')
-                    plt.axhline(y=3432807, color='r', linestyle='--', label='Seuil 3432807')
-                    plt.axhline(y=1e8, color='g', linestyle='--', label='Seuil 1e8')
-                    plt.yscale('log')
-                    plt.xlabel('Episode')
-                    plt.ylabel('Cumulative Reward')
-                    plt.title(f'Training Progress - Episode {episode+1}')
-                    plt.legend()
-                    plt.grid(True)
-                    
-                    plot_path = os.path.join(path, "progress.png")
-                    plt.savefig(plot_path)
-                    plt.close()
+
                 #reset the parameters : 
                 self.sampling_time = 0
                 state, _ = env.reset()
